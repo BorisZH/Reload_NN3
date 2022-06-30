@@ -16,45 +16,58 @@ device = f'cuda:{cuda_device}' if cuda_device != -1 else 'cpu'
 #model
 
 
-def collate_fn(data):
-    pics = []
-    target = []
-    for item in data:
-        pics.append(numpy.array(item[0]))
-        target.append(item[1])
-    return {
-        'data': torch.from_numpy(numpy.array(pics)).float() / 255,
-        'target': torch.from_numpy(numpy.array(target)),
-    }
-
 # conv autoencoder
 class Encoder(nn.Module):
     # 28*28 -> hidden -> out
-    def __init__(self, in_chan, hidden_ch):
+    def __init__(self, in_chan, hidden_ch, out_channels):
         super().__init__()
         #conv2d -> maxpool2d -> conv2d -> maxpool2d -> conv2d
-        pass
+        self.conv1 = nn.Conv2d(in_chan, hidden_ch, kernel_size=5, stride=1, padding=2) # 28 x28
+        self.pool1 = nn.MaxPool2d(2, 2) # 14 x 14
+        self.conv2 = nn.Conv2d(hidden_ch, hidden_ch, kernel_size=3, stride=1, padding=1)  # 14 x 14
+        self.pool2 = nn.MaxPool2d(2, 2)  # 7 x 7
+        self.conv3 = nn.Conv2d(hidden_ch, out_channels, kernel_size=3, stride=1, padding=1)
+
+        self.activation = nn.ReLU()
 
     def forward(self, x): # -> 7x7
-        pass
+        x = self.activation(self.pool1(self.conv1(x)))
+        x = self.activation(self.pool2(self.conv2(x)))
+        x = self.activation(self.conv3(x))
+
+        return x
 
 class Decoder(nn.Module):
     #conv2d -> upsampling2d -> conv2d -> upsampling2d -> conv2d
-    def __init__(self, in_chan, hidden_ch):
+    def __init__(self, in_chan, hidden_ch, out_chan):
         super().__init__()
-        pass
+        self.conv1 = nn.Conv2d(in_chan, hidden_ch, kernel_size=3, stride=1, padding=1)  # 7 x 7
+        self.upsample1 = nn.UpsamplingNearest2d(scale_factor=2)  # 14 x 14
+        self.conv2 = nn.Conv2d(hidden_ch, hidden_ch, kernel_size=3, stride=1, padding=1)  # 14 x 14
+        self.upsample2 = nn.UpsamplingNearest2d(scale_factor=2)  # 28 x 28
+        self.conv3 = nn.Conv2d(hidden_ch, out_chan, kernel_size=5, stride=1, padding=2)
+
+        self.activation = nn.ReLU()
 
     def forward(self, x): # -> 28 x 28
-        pass
+        x = self.activation(self.upsample1(self.conv1(x)))
+        x = self.activation(self.upsample2(self.conv2(x)))
+        x = self.activation(self.conv3(x))
+
+        return x
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
+    def __init__(self, input_ch, enc_hidden_ch, dec_hidden_ch, latent_ch):
         super().__init__()
-        pass
+        self.encoder = Encoder(input_ch, enc_hidden_ch, latent_ch)
+        self.decoder = Decoder(latent_ch, dec_hidden_ch, input_ch)
 
     def forward(self, x):
-        pass
+        x = self.encoder(x)
+        x = self.decoder(x)
+
+        return x
 
 
 def collate_fn(data):
@@ -71,7 +84,7 @@ def collate_fn(data):
 
 
 # model
-model = AutoEncoder(1, 50)
+model = AutoEncoder(1, 50, 40, 1)
 model.train()
 model.to(device)
 # result = model(test_tersor)
@@ -91,7 +104,7 @@ dataset = datasets.MNIST('/Users/a14419009/Repos/NN_reload_stream2', download=Fa
 loss_func = nn.MSELoss()
 #dataloder
 
-for epoch in range(2):
+for epoch in range(3):
     dataloader = DataLoader(
         dataset=dataset,
         collate_fn=collate_fn,

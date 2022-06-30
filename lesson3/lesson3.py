@@ -15,33 +15,59 @@ device = f'cuda:{cuda_device}' if cuda_device != -1 else 'cpu'
 
 #model
 #linear encoder
+
+
 class Encoder(nn.Module):
     # 28*28 -> hidden -> out
     def __init__(self, input_dim, hidden_dim, latent_dim):
         super().__init__()
-        pass
+        self.linear1 = nn.Linear(input_dim, hidden_dim)
+        self.dropout1 = nn.Dropout(0.1)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+        self.dropout2 = nn.Dropout(0.1)
+        self.linear3 = nn.Linear(hidden_dim, latent_dim)
+
+        self.activation = nn.ReLU()
 
     def forward(self, x):
-        pass
+        x = self.dropout1(self.activation(self.linear1(x)))
+        x = self.dropout2(self.activation(self.linear2(x)))
+        x = self.activation(self.linear3(x))
+
+        return x
 
 
 class Decoder(nn.Module):
     # encoder_out -> hidden -> 28*28
     def __init__(self, latent_dim, hidden_dim, out_dim):
         super().__init__()
-        pass
+        self.linear1 = nn.Linear(latent_dim, hidden_dim)
+        self.dropout1 = nn.Dropout(0.1)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+        self.dropout2 = nn.Dropout(0.1)
+        self.linear3 = nn.Linear(hidden_dim, out_dim)
+
+        self.activation = nn.ReLU()
 
     def forward(self, x):
-        pass
+        x = self.dropout1(self.activation(self.linear1(x)))
+        x = self.dropout2(self.activation(self.linear2(x)))
+        x = self.activation(self.linear3(x))
+
+        return x
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, latent_dim):
+    def __init__(self, input_dim, enc_hidden_dim, dec_hidden_dim, latent_dim):
         super().__init__()
-        pass
+        self.encoder = Encoder(input_dim, enc_hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim, dec_hidden_dim, input_dim)
 
     def forward(self, x):
-        pass
+        x = self.encoder(x)
+        x = self.decoder(x)
+
+        return x
 
 
 def collate_fn(data):
@@ -58,7 +84,7 @@ def collate_fn(data):
 
 
 # model
-model = AutoEncoder(28*28, 300, 64)
+model = AutoEncoder(28*28, 300, 280, 64)
 model.train()
 model.to(device)
 # result = model(test_tersor)
@@ -68,14 +94,14 @@ optim = torch.optim.Adam(model.parameters(), lr=0.001)
 #lr scheduler
 
 #dataset
-dataset = datasets.MNIST('/Users/a14419009/Repos/NN_reload_stream2', download=True)
+dataset = datasets.MNIST('/Users/a14419009/Repos/NN_reload_stream2', download=False)
 
 
 #loss
 loss_func = nn.MSELoss()
 
 #dataloder
-for epoch in range(20):
+for epoch in range(5):
     dataloader = DataLoader(
         dataset=dataset,
         collate_fn=collate_fn,
@@ -94,12 +120,11 @@ for epoch in range(20):
             print(loss)
     print(f'epoch: {epoch}')
 
-# test = dataset.data[784].view(1,-1).float() / 255
-# predict = model(test)
-#
-# plt.imshow(test[0].view(28, 28).detach().numpy())
-# plt.show()
-#
-# plt.imshow(predict[0].view(28, 28).detach().numpy())
-# plt.show()
-#
+test = dataset.data[784].view(1, -1).float() / 255
+predict = model(test)
+
+plt.imshow(test[0].view(28, 28).detach().numpy())
+plt.show()
+
+plt.imshow(predict[0].view(28, 28).detach().numpy())
+plt.show()
