@@ -56,7 +56,8 @@ class DatasetSeq(Dataset):
             'char': self.encoded_char_sequences[index],# [[1,2,3], [4,5], [1,2], [2,6,5,4], []] len=5
             'target': self.encoded_targets[index], #  (1)
         }
-
+# seq1 = [1, 2, 3] -> [1, 2, 3, 0]
+# seq2 = [7, 5, 4, 2]
 
 def collate_fn(batch):
     data = []

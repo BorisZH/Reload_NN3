@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader, Dataset
 from lesson4.dataset import DatasetSeq, collate_fn_char
 
 
-data_dir = '/raid/home/bgzhestkov/nn_reload2/lesson4/'
+data_dir = '/raid/home/bgzhestkov/nn_reload3/lesson4/'
 train_lang = 'en'
 
 
@@ -21,7 +21,6 @@ device = f'cuda:{cuda_device}' if cuda_device != -1 else 'cpu'
 
 
 #model
-
 class CharModel(nn.Module):
     def __init__(self,
                  vocab_size: int,
@@ -29,11 +28,17 @@ class CharModel(nn.Module):
                  hidden_dim: int,
                  ):
         super().__init__()
-        pass
+        self.emb = nn.Embedding(vocab_size, emb_dim)
+        self.rnn = nn.GRU(emb_dim, hidden_dim, batch_first=True)
 
     def forward(self, x): # B x T
-        pass
+        emb_x = self.emb(x)  # B x T x V
+        _, out = self.rnn(emb_x) # 1 x B x Hid
 
+        return out
+
+# m   a   n
+# h1  h2  h3 -> h3
 
 class POS_predictorV2Chars(nn.Module):
     def __init__(self,
@@ -46,10 +51,19 @@ class POS_predictorV2Chars(nn.Module):
                  char_hidden_dim: int,
                  ):
         super().__init__()
-        pass
+        self.emb = nn.Embedding(vocab_size, emb_dim)
+        self.gru = nn.GRU(emb_dim + char_hidden_dim, hidden_dim, batch_first=True, bidirectional=False)
+        self.classifier = nn.Linear(hidden_dim, n_classes, bias=True)
+        self.char_rnn = CharModel(n_chars, char_emb_dim, char_hidden_dim)
 
-    def forward(self, x, char_seq): # B x T
-        pass
+    def forward(self, x, x_chars):  # B x T
+        emb_x = self.emb(x)  # B x T x V
+        chars = [self.char_rnn(word.to(emb_x.device)).squeeze().unsqueeze(1) for word in x_chars]
+        chars = torch.cat(chars, dim=1)
+        gru_out, _ = self.gru(torch.cat((emb_x, chars), dim=-1))
+        pred = self.classifier(torch.dropout(gru_out, 0.1, self.training))
+
+        return pred
 
 
 model = POS_predictorV2Chars(vocab_len, 200, 256, n_classes, n_chars, 32, 64)
@@ -85,4 +99,4 @@ for epoch in range(20):
         if step % 50:
             print(loss)
     print(epoch)
-    torch.save({'model': model.state_dict()}, '/raid/home/bgzhestkov/nn_reload2/epoch_%d.pth.tar' % epoch)
+    torch.save({'model': model.state_dict()}, '/raid/home/bgzhestkov/nn_reload3/epoch_%d.pth.tar' % epoch)
