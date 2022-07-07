@@ -28,6 +28,6 @@ class ScaledDotProductAttention(nn.Module):
             attn = attn.masked_fill(~mask, 0.)
 
         attn = self.dropout(attn)
-        output = torch.bmm(attn.transpose(2, 1), v)
+        output = torch.bmm(attn, v)
 
         return output, attn
